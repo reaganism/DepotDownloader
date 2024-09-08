@@ -1,4 +1,4 @@
-// This file is subject to the terms and conditions defined
+﻿// This file is subject to the terms and conditions defined
 // in file 'LICENSE', which is part of this source code package.
 
 using System;
@@ -31,8 +31,8 @@ namespace DepotDownloader
 
         public static void LoadFromFile(string filename)
         {
-            if (Loaded)
-                throw new Exception("Config already loaded");
+            // if (Loaded)
+            //     throw new Exception("Config already loaded");
 
             if (File.Exists(filename))
             {
