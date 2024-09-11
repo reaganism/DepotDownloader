@@ -1,31 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <RollForward>LatestMajor</RollForward>
-    <Version>2.7.1</Version>
-    <Description>Steam Downloading Utility</Description>
-    <Authors>SteamRE Team</Authors>
-    <Copyright>Copyright © SteamRE Team 2024</Copyright>
-    <ApplicationIcon>..\Icon\DepotDownloader.ico</ApplicationIcon>
-    <Deterministic>true</Deterministic>
-    <TreatWarningsAsErrors Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</TreatWarningsAsErrors>
-  </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="..\LICENSE" Link="LICENSE">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.106">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="protobuf-net" Version="3.2.30" />
-    <PackageReference Include="QRCoder" Version="1.6.0" />
-    <PackageReference Include="SteamKit2" Version="3.0.0-Beta.2" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="protobuf-net" Version="3.2.30"/>
+        <PackageReference Include="QRCoder" Version="1.6.0"/>
+        <PackageReference Include="Spectre.Console" Version="0.49.2-preview.0.29"/>
+        <PackageReference Include="SteamKit2" Version="3.0.0-Beta.2"/>
+    </ItemGroup>
+
 </Project>
