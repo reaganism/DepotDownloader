@@ -10,6 +10,8 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 
+using SteamKit2;
+
 namespace DepotDownloader.Utilities;
 
 internal static class Util
@@ -47,22 +49,31 @@ internal static class Util
     }
 
     // Validate a file against Steam3 Chunk data
-    public static List<ProtoManifest.ChunkData> ValidateSteam3FileChecksums(FileStream fs, ProtoManifest.ChunkData[] chunkData)
+    public static List<DepotManifest.ChunkData> ValidateSteam3FileChecksums(FileStream fs, DepotManifest.ChunkData[] chunkData)
     {
-        var neededChunks = new List<ProtoManifest.ChunkData>();
+        var neededChunks = new List<DepotManifest.ChunkData>();
 
         foreach (var data in chunkData)
         {
             fs.Seek((long)data.Offset, SeekOrigin.Begin);
 
             var adler = AdlerHash(fs, (int)data.UncompressedLength);
-            if (!adler.SequenceEqual(data.Checksum))
+            if (!adler.SequenceEqual(BitConverter.GetBytes(data.Checksum)))
             {
                 neededChunks.Add(data);
             }
         }
 
         return neededChunks;
+    }
+
+    public static byte[] FileShaHash(string fileName)
+    {
+        using var fs  = File.Open(fileName, FileMode.Open);
+        using var sha = SHA1.Create();
+        {
+            return sha.ComputeHash(fs);
+        }
     }
 
     public static byte[] AdlerHash(Stream stream, int length)

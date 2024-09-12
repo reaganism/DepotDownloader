@@ -661,11 +661,11 @@ internal static class ContentDownloader
         return new DepotDownloadInfo(depotId, appId, manifestId, branch, installDir, depotKey);
     }
 
-    private class ChunkMatch(ProtoManifest.ChunkData oldChunk, ProtoManifest.ChunkData newChunk)
+    private class ChunkMatch(DepotManifest.ChunkData oldChunk, DepotManifest.ChunkData newChunk)
     {
-        public ProtoManifest.ChunkData OldChunk { get; } = oldChunk;
+        public DepotManifest.ChunkData OldChunk { get; } = oldChunk;
 
-        public ProtoManifest.ChunkData NewChunk { get; } = newChunk;
+        public DepotManifest.ChunkData NewChunk { get; } = newChunk;
     }
 
     private class DepotFilesData
@@ -676,9 +676,9 @@ internal static class ContentDownloader
 
         public string? StagingDir { get; init; }
 
-        public ProtoManifest? PreviousManifest { get; init; }
+        public DepotManifest? PreviousManifest { get; init; }
 
-        public List<ProtoManifest.FileData>? FilteredFiles { get; init; }
+        public List<DepotManifest.FileData>? FilteredFiles { get; init; }
 
         public HashSet<string>? AllFileNames { get; init; }
     }
@@ -786,8 +786,8 @@ internal static class ContentDownloader
 
         Console.WriteLine("Processing depot {0}", depot.DepotId);
 
-        var            oldProtoManifest = default(ProtoManifest);
-        ProtoManifest? newProtoManifest;
+        var            oldManifest = default(DepotManifest);
+        DepotManifest? newManifest;
         var            configDir = Path.Combine(depot.InstallDir, config_dir);
 
         DepotConfigStore.CONTAINER.Store.InstalledManifestIDs.TryGetValue(depot.DepotId, out var lastManifestId);
@@ -799,7 +799,7 @@ internal static class ContentDownloader
 
         if (lastManifestId != INVALID_MANIFEST_ID)
         {
-            var oldManifestFileName = Path.Combine(configDir, $"{depot.DepotId}_{lastManifestId}.bin");
+            var oldManifestFileName = Path.Combine(configDir, $"{depot.DepotId}_{lastManifestId}.manifest");
 
             if (File.Exists(oldManifestFileName))
             {
@@ -814,28 +814,31 @@ internal static class ContentDownloader
                     expectedChecksum = null;
                 }
 
-                oldProtoManifest = ProtoManifest.LoadFromFile(oldManifestFileName, out var currentChecksum);
-
-                if (expectedChecksum == null || !expectedChecksum.SequenceEqual(currentChecksum ?? []))
+                var currentChecksum = Util.FileShaHash(oldManifestFileName);
+                if (expectedChecksum is not null && expectedChecksum.SequenceEqual(currentChecksum))
+                {
+                    oldManifest = DepotManifest.LoadFromFile(oldManifestFileName);
+                }
+                else
                 {
                     // We only have to show this warning if the old manifest ID was different
                     if (lastManifestId != depot.ManifestId)
                     {
-                        Console.WriteLine("Manifest {0} on disk did not match the expected checksum.", lastManifestId);
+                        Console.WriteLine($"Manifest {lastManifestId} on disk did not match the expected checksum.",);
                     }
-                    oldProtoManifest = null;
+                    oldManifest = null;
                 }
             }
         }
 
-        if (lastManifestId == depot.ManifestId && oldProtoManifest != null)
+        if (lastManifestId == depot.ManifestId && oldManifest != null)
         {
-            newProtoManifest = oldProtoManifest;
-            Console.WriteLine("Already have manifest {0} for depot {1}.", depot.ManifestId, depot.DepotId);
+            newManifest = oldManifest;
+            Console.WriteLine($"Already have manifest {depot.ManifestId} for depot {depot.DepotId}.");
         }
         else
         {
-            var newManifestFileName = Path.Combine(configDir, $"{depot.DepotId}_{depot.ManifestId}.bin");
+            var newManifestFileName = Path.Combine(configDir, $"{depot.DepotId}_{depot.ManifestId}.manifest");
             {
                 byte[]? expectedChecksum;
 
@@ -848,16 +851,19 @@ internal static class ContentDownloader
                     expectedChecksum = null;
                 }
 
-                newProtoManifest = ProtoManifest.LoadFromFile(newManifestFileName, out var currentChecksum);
-
-                if (newProtoManifest != null && (expectedChecksum == null || !expectedChecksum.SequenceEqual(currentChecksum ?? [])))
+                var currentChecksum = Util.FileShaHash(newManifestFileName);
+                if (expectedChecksum is not null && expectedChecksum.SequenceEqual(currentChecksum))
+                {
+                    newManifest = DepotManifest.LoadFromFile(newManifestFileName);
+                }
+                else
                 {
                     Console.WriteLine("Manifest {0} on disk did not match the expected checksum.", depot.ManifestId);
-                    newProtoManifest = null;
+                    newManifest = null;
                 }
             }
 
-            if (newProtoManifest != null)
+            if (newManifest != null)
             {
                 Console.WriteLine("Already have manifest {0} for depot {1}.", depot.ManifestId, depot.DepotId);
             }
@@ -986,28 +992,25 @@ internal static class ContentDownloader
                 // Throw the cancellation exception if requested so that this task is marked failed
                 cts.Token.ThrowIfCancellationRequested();
 
-                Debug.Assert(depotManifest is not null);
-                newProtoManifest = new ProtoManifest(depotManifest, depot.ManifestId);
-                newProtoManifest.SaveToFile(newManifestFileName, out var checksum);
-                await File.WriteAllBytesAsync(newManifestFileName + ".sha", checksum);
+                Debug.Assert(newManifest is not null);
+                newManifest.SaveToFile(newManifestFileName);
+                await File.WriteAllBytesAsync(newManifestFileName + ".sha", Util.FileShaHash(newManifestFileName));
 
                 Console.WriteLine(" Done!");
             }
         }
 
-        newProtoManifest.Files.Sort((x, y) => string.Compare(x.FileName, y.FileName, StringComparison.Ordinal));
-
-        Console.WriteLine("Manifest {0} ({1})", depot.ManifestId, newProtoManifest.CreationTime);
+        Console.WriteLine($"Manifest {depot.ManifestId} ({newManifest.CreationTime})");
 
         if (CONFIG.DownloadManifestOnly)
         {
-            DumpManifestToTextFile(depot, newProtoManifest);
+            DumpManifestToTextFile(depot, newManifest);
             return null;
         }
 
         var stagingDir = Path.Combine(depot.InstallDir, staging_dir);
 
-        var filesAfterExclusions = newProtoManifest.Files.AsParallel().Where(f => TestIsFileIncluded(f.FileName)).ToList();
+        var filesAfterExclusions = newManifest.Files.AsParallel().Where(f => TestIsFileIncluded(f.FileName)).ToList();
         var allFileNames         = new HashSet<string>(filesAfterExclusions.Count);
 
         // Pre-process
@@ -1042,7 +1045,7 @@ internal static class ContentDownloader
             DepotDownloadInfo = depot,
             DepotCounter      = depotCounter,
             StagingDir        = stagingDir,
-            PreviousManifest  = oldProtoManifest,
+            PreviousManifest  = oldManifest,
             FilteredFiles     = filesAfterExclusions,
             AllFileNames      = allFileNames,
         };
@@ -1062,7 +1065,7 @@ internal static class ContentDownloader
         Console.WriteLine("Downloading depot {0}", depot.DepotId);
 
         var files             = depotFilesData.FilteredFiles!.Where(f => !f.Flags.HasFlag(EDepotFileFlag.Directory)).ToArray();
-        var networkChunkQueue = new ConcurrentQueue<(FileStreamData fileStreamData, ProtoManifest.FileData fileData, ProtoManifest.ChunkData chunk)>();
+        var networkChunkQueue = new ConcurrentQueue<(FileStreamData fileStreamData, DepotManifest.FileData fileData, DepotManifest.ChunkData chunk)>();
 
         await Util.InvokeAsync(
             files.Select(
@@ -1131,8 +1134,8 @@ internal static class ContentDownloader
         CancellationTokenSource                                                            cts,
         GlobalDownloadCounter                                                              downloadCounter,
         DepotFilesData                                                                     depotFilesData,
-        ProtoManifest.FileData                                                             file,
-        ConcurrentQueue<(FileStreamData, ProtoManifest.FileData, ProtoManifest.ChunkData)> networkChunkQueue
+        DepotManifest.FileData                                                             file,
+        ConcurrentQueue<(FileStreamData, DepotManifest.FileData, DepotManifest.ChunkData)> networkChunkQueue
     )
     {
         cts.Token.ThrowIfCancellationRequested();
@@ -1141,7 +1144,7 @@ internal static class ContentDownloader
         var stagingDir           = depotFilesData.StagingDir!;
         var depotDownloadCounter = depotFilesData.DepotCounter;
         var oldProtoManifest     = depotFilesData.PreviousManifest;
-        var oldManifestFile      = default(ProtoManifest.FileData);
+        var oldManifestFile      = default(DepotManifest.FileData);
         if (oldProtoManifest != null)
         {
             oldManifestFile = oldProtoManifest.Files.SingleOrDefault(f => f.FileName == file.FileName)!;
@@ -1156,7 +1159,7 @@ internal static class ContentDownloader
             File.Delete(fileStagingPath);
         }
 
-        List<ProtoManifest.ChunkData> neededChunks;
+        List<DepotManifest.ChunkData> neededChunks;
         var                           fi           = new FileInfo(fileFinalPath);
         var                           fileDidExist = fi.Exists;
         if (!fileDidExist)
@@ -1196,7 +1199,7 @@ internal static class ContentDownloader
 
                     foreach (var chunk in file.Chunks)
                     {
-                        var oldChunk = oldManifestFile.Chunks.FirstOrDefault(c => c.ChunkId!.SequenceEqual(chunk.ChunkId!));
+                        var oldChunk = oldManifestFile.Chunks.FirstOrDefault(c => c.ChunkID!.SequenceEqual(chunk.ChunkID!));
                         if (oldChunk != null)
                         {
                             matchingChunks.Add(new ChunkMatch(oldChunk, chunk));
@@ -1218,7 +1221,7 @@ internal static class ContentDownloader
                             fsOld.Seek((long)match.OldChunk.Offset, SeekOrigin.Begin);
 
                             var adler = Util.AdlerHash(fsOld, (int)match.OldChunk.UncompressedLength);
-                            if (!adler.SequenceEqual(match.OldChunk.Checksum))
+                            if (!adler.SequenceEqual(BitConverter.GetBytes(match.OldChunk.Checksum)))
                             {
                                 neededChunks.Add(match.NewChunk);
                             }
@@ -1334,9 +1337,9 @@ internal static class ContentDownloader
         CancellationTokenSource cts,
         GlobalDownloadCounter   downloadCounter,
         DepotFilesData          depotFilesData,
-        ProtoManifest.FileData  file,
+        DepotManifest.FileData  file,
         FileStreamData          fileStreamData,
-        ProtoManifest.ChunkData chunk
+        DepotManifest.ChunkData chunk
     )
     {
         if (steam3 is null)
@@ -1354,12 +1357,12 @@ internal static class ContentDownloader
         var depot                = depotFilesData.DepotDownloadInfo;
         var depotDownloadCounter = depotFilesData.DepotCounter;
 
-        var chunkId = Convert.ToHexString(chunk.ChunkId!).ToLowerInvariant();
+        var chunkId = Convert.ToHexString(chunk.ChunkID!).ToLowerInvariant();
 
         var data = new DepotManifest.ChunkData
         {
-            ChunkID            = chunk.ChunkId,
-            Checksum           = BitConverter.ToUInt32(chunk.Checksum),
+            ChunkID            = chunk.ChunkID,
+            Checksum           = chunk.Checksum,
             Offset             = chunk.Offset,
             CompressedLength   = chunk.CompressedLength,
             UncompressedLength = chunk.UncompressedLength,
@@ -1505,7 +1508,7 @@ internal static class ContentDownloader
         }
     }
 
-    private static void DumpManifestToTextFile(DepotDownloadInfo depot, ProtoManifest manifest)
+    private static void DumpManifestToTextFile(DepotDownloadInfo depot, DepotManifest manifest)
     {
         var       txtManifest = Path.Combine(depot.InstallDir, $"manifest_{depot.DepotId}_{depot.ManifestId}.txt");
         using var sw          = new StreamWriter(txtManifest);
