@@ -17,7 +17,7 @@ namespace DepotDownloader.Stores;
 ///     Store for account settings.
 /// </summary>
 [ProtoContract]
-internal sealed class AccountSettingsStore : IStore<AccountSettingsStore>
+internal sealed class AccountSettingsStore
 {
 #region Proto members
     [ProtoMember(1, IsRequired = false)]
@@ -38,11 +38,6 @@ internal sealed class AccountSettingsStore : IStore<AccountSettingsStore>
 
     private string? fileName;
 
-    /// <summary>
-    ///     The store container.
-    /// </summary>
-    public static readonly StoreContainer<AccountSettingsStore> CONTAINER;
-
     private static readonly IsolatedStorageFile isolated_storage = IsolatedStorageFile.GetUserStoreForAssembly();
 
     private AccountSettingsStore(string fileName)
@@ -51,7 +46,7 @@ internal sealed class AccountSettingsStore : IStore<AccountSettingsStore>
     }
 
 #region IStore impl
-    void IStore<AccountSettingsStore>.Save()
+    public void Save()
     {
         Debug.Assert(fileName is not null);
 
@@ -67,18 +62,8 @@ internal sealed class AccountSettingsStore : IStore<AccountSettingsStore>
         }
     }
 
-    static AccountSettingsStore IStore<AccountSettingsStore>.LoadFromFile(string fileName, bool throwIfLoaded)
+    public static AccountSettingsStore LoadFromFile(string fileName)
     {
-        if (CONTAINER.Loaded)
-        {
-            if (throwIfLoaded)
-            {
-                throw new InvalidOperationException("Store already loaded");
-            }
-
-            return CONTAINER.Store;
-        }
-
         if (!isolated_storage.FileExists(fileName))
         {
             return new AccountSettingsStore(fileName);

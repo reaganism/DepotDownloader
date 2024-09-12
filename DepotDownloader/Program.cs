@@ -19,25 +19,25 @@ namespace DepotDownloader;
 
 public static class Program
 {
-    public static async Task<int> Main(string[] args)
+    public static async Task Main(string[] args)
     {
         if (args.Length == 0)
         {
             // PrintVersion();
             PrintUsage();
-            return 0;
+            return;
         }
 
         DebugLog.Enabled = false;
 
-        AccountSettingsStore.CONTAINER.LoadFromFile("account.config", false);
+        var accountSettings = AccountSettingsStore.LoadFromFile("account.config");
 
 #region Common Options
         // Not using HasParameter because it is case-insensitive
         if (args.Length == 1 && (args[0] == "-V" || args[0] == "--version"))
         {
             // PrintVersion(true);
-            return 0;
+            return;
         }
 
         if (HasParameter(args, "-debug"))
@@ -121,7 +121,7 @@ public static class Program
         if (appId == ContentDownloader.INVALID_APP_ID)
         {
             Console.WriteLine("Error: -app not specified!");
-            return 1;
+            return;
         }
 
         var pubFile = GetParameter(args, "-pubfile", ContentDownloader.INVALID_MANIFEST_ID);
@@ -140,7 +140,7 @@ public static class Program
                  || ex is OperationCanceledException)
                 {
                     Console.WriteLine(ex.Message);
-                    return 1;
+                    return;
                 }
                 catch (Exception e)
                 {
@@ -155,7 +155,7 @@ public static class Program
             else
             {
                 Console.WriteLine("Error: InitializeSteam failed");
-                return 1;
+                return;
             }
 #endregion
         }
@@ -173,7 +173,7 @@ public static class Program
                  || ex is OperationCanceledException)
                 {
                     Console.WriteLine(ex.Message);
-                    return 1;
+                    return;
                 }
                 catch (Exception e)
                 {
@@ -188,7 +188,7 @@ public static class Program
             else
             {
                 Console.WriteLine("Error: InitializeSteam failed");
-                return 1;
+                return;
             }
 #endregion
         }
@@ -204,7 +204,7 @@ public static class Program
             if (ContentDownloader.CONFIG.DownloadAllPlatforms && !string.IsNullOrEmpty(os))
             {
                 Console.WriteLine("Error: Cannot specify -os when -all-platforms is specified.");
-                return 1;
+                return;
             }
 
             var arch = GetParameter<string>(args, "-osarch");
@@ -215,7 +215,7 @@ public static class Program
             if (ContentDownloader.CONFIG.DownloadAllLanguages && !string.IsNullOrEmpty(language))
             {
                 Console.WriteLine("Error: Cannot specify -language when -all-languages is specified.");
-                return 1;
+                return;
             }
 
             var lv = HasParameter(args, "-lowviolence");
@@ -230,7 +230,7 @@ public static class Program
                 if (depotIdList.Count != manifestIdList.Count)
                 {
                     Console.WriteLine("Error: -manifest requires one id for every -depot specified");
-                    return 1;
+                    return;
                 }
 
                 var zippedDepotManifest = depotIdList.Zip(manifestIdList, (depotId, manifestId) => (depotId, manifestId));
@@ -252,7 +252,7 @@ public static class Program
                  || ex is OperationCanceledException)
                 {
                     Console.WriteLine(ex.Message);
-                    return 1;
+                    return;
                 }
                 catch (Exception e)
                 {
@@ -267,12 +267,10 @@ public static class Program
             else
             {
                 Console.WriteLine("Error: InitializeSteam failed");
-                return 1;
+                return;
             }
 #endregion
         }
-
-        return 0;
     }
 
     private static bool InitializeSteam(string? username, string? password)

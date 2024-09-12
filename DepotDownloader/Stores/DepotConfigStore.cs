@@ -15,7 +15,7 @@ namespace DepotDownloader.Stores;
 ///     Store for depot configs.
 /// </summary>
 [ProtoContract]
-internal sealed class DepotConfigStore : IStore<DepotConfigStore>
+internal sealed class DepotConfigStore
 {
 #region Proto members
     [ProtoMember(1)]
@@ -24,18 +24,12 @@ internal sealed class DepotConfigStore : IStore<DepotConfigStore>
 
     private string? fileName;
 
-    /// <summary>
-    ///     The store container.
-    /// </summary>
-    public static readonly StoreContainer<DepotConfigStore> CONTAINER;
-
     private DepotConfigStore(string fileName)
     {
         this.fileName = fileName;
     }
 
-#region IStore impl
-    void IStore<DepotConfigStore>.Save()
+    public void Save()
     {
         Debug.Assert(fileName is not null);
 
@@ -44,18 +38,8 @@ internal sealed class DepotConfigStore : IStore<DepotConfigStore>
         Serializer.Serialize(ds, this);
     }
 
-    static DepotConfigStore IStore<DepotConfigStore>.LoadFromFile(string fileName, bool throwIfLoaded)
+    public static DepotConfigStore LoadFromFile(string fileName, bool throwIfLoaded)
     {
-        if (CONTAINER.Loaded)
-        {
-            if (throwIfLoaded)
-            {
-                throw new InvalidOperationException("Store already loaded");
-            }
-
-            return CONTAINER.Store;
-        }
-
         if (!File.Exists(fileName))
         {
             return new DepotConfigStore(fileName);
@@ -69,5 +53,4 @@ internal sealed class DepotConfigStore : IStore<DepotConfigStore>
             return store;
         }
     }
-#endregion
 }
