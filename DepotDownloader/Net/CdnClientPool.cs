@@ -36,16 +36,12 @@ internal sealed class CdnClientPool
     private readonly BlockingCollection<Server> availableServerEndpoints = [];
 
     private readonly AutoResetEvent          populatePoolEvent = new(true);
-    private readonly Task                    monitorTask;
-    private readonly CancellationTokenSource shutdownToken = new();
+    private readonly CancellationTokenSource shutdownToken     = new();
+
+    private readonly Task monitorTask;
 
     public CdnClientPool(Steam3Session steamSession, uint appId)
     {
-        if (steamSession.SteamClient is null)
-        {
-            throw new InvalidOperationException("Cannot create CDN client pool, Steam session as null Steam client!");
-        }
-
         this.steamSession = steamSession;
         this.appId        = appId;
         CdnClient         = new Client(steamSession.SteamClient);

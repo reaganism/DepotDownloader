@@ -42,17 +42,17 @@ internal sealed class Steam3Session
 
     public Dictionary<string, byte[]> AppBetaPasswords { get; } = [];
 
-    public SteamClient? SteamClient { get; }
+    public SteamClient SteamClient { get; }
 
-    public SteamUser? SteamUser { get; }
+    public SteamUser SteamUser { get; }
 
-    public SteamContent? SteamContent { get; }
+    public SteamContent SteamContent { get; }
 
-    private readonly SteamApps?                                           steamApps;
-    private readonly SteamCloud?                                          steamCloud;
-    private readonly SteamUnifiedMessages.UnifiedService<IPublishedFile>? steamPublishedFile;
-    private readonly CallbackManager                                      callbacks;
-    private readonly bool                                                 authenticatedUser;
+    private readonly SteamApps                                           steamApps;
+    private readonly SteamCloud                                          steamCloud;
+    private readonly SteamUnifiedMessages.UnifiedService<IPublishedFile> steamPublishedFile;
+    private readonly CallbackManager                                     callbacks;
+    private readonly bool                                                authenticatedUser;
 
     private bool         bConnected;
     private bool         bConnecting;
@@ -80,14 +80,14 @@ internal sealed class Steam3Session
         );
 
         SteamClient = new SteamClient(clientConfiguration);
-        SteamUser   = SteamClient.GetHandler<SteamUser>();
-        steamApps   = SteamClient.GetHandler<SteamApps>();
-        steamCloud  = SteamClient.GetHandler<SteamCloud>();
-        var steamUnifiedMessages = SteamClient.GetHandler<SteamUnifiedMessages>();
+        SteamUser   = SteamClient.GetHandler<SteamUser>()  ?? throw new InvalidOperationException("Cannot get SteamUser handler");
+        steamApps   = SteamClient.GetHandler<SteamApps>()  ?? throw new InvalidOperationException("Cannot get SteamApps handler");
+        steamCloud  = SteamClient.GetHandler<SteamCloud>() ?? throw new InvalidOperationException("Cannot get SteamCloud handler");
+        var steamUnifiedMessages = SteamClient.GetHandler<SteamUnifiedMessages>() ?? throw new InvalidOperationException("Cannot get SteamUnifiedMessages handler");
         {
-            steamPublishedFile = steamUnifiedMessages?.CreateService<IPublishedFile>();
+            steamPublishedFile = steamUnifiedMessages.CreateService<IPublishedFile>() ?? throw new InvalidOperationException("Cannot create IPublishedFile service");
         }
-        SteamContent = SteamClient.GetHandler<SteamContent>();
+        SteamContent = SteamClient.GetHandler<SteamContent>() ?? throw new InvalidOperationException("Cannot get SteamContent handler");
 
         callbacks = new CallbackManager(SteamClient);
 
