@@ -14,13 +14,12 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using DepotDownloader.Net;
+using DepotDownloader.Net.Http;
 using DepotDownloader.Stores;
 using DepotDownloader.Utilities;
 
 using SteamKit2;
 using SteamKit2.CDN;
-
-using HttpClientFactory = DepotDownloader.Net.HttpClientFactory;
 
 namespace DepotDownloader;
 
@@ -426,7 +425,7 @@ internal static class ContentDownloader
         Directory.CreateDirectory(Path.GetDirectoryName(fileStagingPath) ?? throw new InvalidOperationException());
 
         await using (var file = File.OpenWrite(fileStagingPath))
-        using (var client = HttpClientFactory.CreateHttpClient())
+        using (var client = WorkaroundHttpClientFactory.CreateHttpClient())
         {
             Console.WriteLine("Downloading {0}", fileName);
             var responseStream = await client.GetStreamAsync(url);

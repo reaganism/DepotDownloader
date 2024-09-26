@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using DepotDownloader.Net.Http;
 using DepotDownloader.Stores;
 
 using QRCoder;
@@ -18,8 +19,6 @@ using SteamKit2;
 using SteamKit2.Authentication;
 using SteamKit2.CDN;
 using SteamKit2.Internal;
-
-using HttpClientFactory = DepotDownloader.Net.HttpClientFactory;
 
 namespace DepotDownloader;
 
@@ -77,7 +76,7 @@ internal sealed class Steam3Session
         authenticatedUser = details.Username != null || ContentDownloader.CONFIG.UseQrCode;
 
         var clientConfiguration = SteamConfiguration.Create(
-            config => config.WithHttpClientFactory(HttpClientFactory.CreateHttpClient)
+            config => config.WithHttpClientFactory(WorkaroundHttpClientFactory.CreateHttpClient)
         );
 
         SteamClient = new SteamClient(clientConfiguration);

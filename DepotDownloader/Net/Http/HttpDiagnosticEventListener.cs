@@ -5,7 +5,7 @@ using System;
 using System.Diagnostics.Tracing;
 using System.Text;
 
-namespace DepotDownloader.Net;
+namespace DepotDownloader.Net.Http;
 
 /// <summary>
 ///     A simple HTTP event listener that writes events to the console.
