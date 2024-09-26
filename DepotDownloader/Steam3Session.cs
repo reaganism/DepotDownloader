@@ -10,7 +10,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using DepotDownloader.Net.Http;
 using DepotDownloader.Stores;
 
 using QRCoder;
@@ -42,17 +41,8 @@ internal sealed class Steam3Session
 
     public Dictionary<string, byte[]> AppBetaPasswords { get; } = [];
 
-    public SteamClient SteamClient { get; }
-
-    public SteamUser SteamUser { get; }
-
-    public SteamContent SteamContent { get; }
-
-    private readonly SteamApps                                           steamApps;
-    private readonly SteamCloud                                          steamCloud;
-    private readonly SteamUnifiedMessages.UnifiedService<IPublishedFile> steamPublishedFile;
-    private readonly CallbackManager                                     callbacks;
-    private readonly bool                                                authenticatedUser;
+    private readonly Steam3Context   ctx;
+    private readonly CallbackManager callbacks;
 
     private bool         bConnected;
     private bool         bConnecting;
@@ -65,36 +55,19 @@ internal sealed class Steam3Session
     private DateTime     connectTime;
     private AuthSession? authSession;
 
-    // input
-    private readonly SteamUser.LogOnDetails logonDetails;
-
     private static readonly TimeSpan steam3_timeout = TimeSpan.FromSeconds(30);
 
-    public Steam3Session(SteamUser.LogOnDetails details)
+    public Steam3Session(Steam3Context ctx)
     {
-        logonDetails      = details;
-        authenticatedUser = details.Username != null || ContentDownloader.CONFIG.UseQrCode;
+        this.ctx = ctx;
 
-        var clientConfiguration = SteamConfiguration.Create(
-            config => config.WithHttpClientFactory(WorkaroundHttpClientFactory.CreateHttpClient)
-        );
-
-        SteamClient = new SteamClient(clientConfiguration);
-        SteamUser   = SteamClient.GetHandler<SteamUser>()  ?? throw new InvalidOperationException("Cannot get SteamUser handler");
-        steamApps   = SteamClient.GetHandler<SteamApps>()  ?? throw new InvalidOperationException("Cannot get SteamApps handler");
-        steamCloud  = SteamClient.GetHandler<SteamCloud>() ?? throw new InvalidOperationException("Cannot get SteamCloud handler");
-        var steamUnifiedMessages = SteamClient.GetHandler<SteamUnifiedMessages>() ?? throw new InvalidOperationException("Cannot get SteamUnifiedMessages handler");
+        callbacks = new CallbackManager(ctx.SteamClient);
         {
-            steamPublishedFile = steamUnifiedMessages.CreateService<IPublishedFile>() ?? throw new InvalidOperationException("Cannot create IPublishedFile service");
+            callbacks.Subscribe<SteamClient.ConnectedCallback>(ConnectedCallback);
+            callbacks.Subscribe<SteamClient.DisconnectedCallback>(DisconnectedCallback);
+            callbacks.Subscribe<SteamUser.LoggedOnCallback>(LogOnCallback);
+            callbacks.Subscribe<SteamApps.LicenseListCallback>(LicenseListCallback);
         }
-        SteamContent = SteamClient.GetHandler<SteamContent>() ?? throw new InvalidOperationException("Cannot get SteamContent handler");
-
-        callbacks = new CallbackManager(SteamClient);
-
-        callbacks.Subscribe<SteamClient.ConnectedCallback>(ConnectedCallback);
-        callbacks.Subscribe<SteamClient.DisconnectedCallback>(DisconnectedCallback);
-        callbacks.Subscribe<SteamUser.LoggedOnCallback>(LogOnCallback);
-        callbacks.Subscribe<SteamApps.LicenseListCallback>(LicenseListCallback);
 
         Console.Write("Connecting to Steam3...");
         Connect();
