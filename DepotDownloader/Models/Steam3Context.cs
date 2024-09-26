@@ -5,7 +5,7 @@ using DepotDownloader.Net.Http;
 using SteamKit2;
 using SteamKit2.Internal;
 
-namespace DepotDownloader;
+namespace DepotDownloader.Models;
 
 public readonly record struct Steam3Context(
     SteamUser.LogOnDetails                              LogOnDetails,
