@@ -9,7 +9,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using DepotDownloader.Models;
 using DepotDownloader.Stores;
+using DepotDownloader.Utilities;
 
 using SteamKit2.CDN;
 
@@ -29,8 +31,8 @@ internal sealed class CdnClientPool
 
     public CancellationTokenSource? ExhaustedToken { get; set; }
 
-    private readonly Steam3Session steamSession;
-    private readonly uint          appId;
+    private readonly DepotContext ctx;
+    private readonly uint         appId;
 
     private readonly ConcurrentStack<Server>    activeConnectionPool     = [];
     private readonly BlockingCollection<Server> availableServerEndpoints = [];
@@ -40,11 +42,11 @@ internal sealed class CdnClientPool
 
     private readonly Task monitorTask;
 
-    public CdnClientPool(Steam3Session steamSession, uint appId)
+    public CdnClientPool(DepotContext ctx, uint appId)
     {
-        this.steamSession = steamSession;
-        this.appId        = appId;
-        CdnClient         = new Client(steamSession.SteamClient);
+        this.ctx   = ctx;
+        this.appId = appId;
+        CdnClient  = new Client(ctx.Steam3.SteamClient);
 
         monitorTask = Task.Factory.StartNew(ConnectionPoolMonitorAsync).Unwrap();
     }
@@ -59,10 +61,7 @@ internal sealed class CdnClientPool
     {
         try
         {
-            Debug.Assert(steamSession.SteamContent is not null);
-
-            var cdnServers = await steamSession.SteamContent.GetServersForSteamPipe();
-            return cdnServers;
+            return await ctx.Steam3.SteamContent.GetServersForSteamPipe();
         }
         catch (Exception ex)
         {
@@ -74,8 +73,6 @@ internal sealed class CdnClientPool
 
     private async Task ConnectionPoolMonitorAsync()
     {
-        Debug.Assert(steamSession.SteamClient is not null);
-
         var didPopulate = false;
 
         while (!shutdownToken.IsCancellationRequested)
@@ -85,41 +82,35 @@ internal sealed class CdnClientPool
             // We want the Steam session so we can take the CellID from the
             // session and pass it through to the ContentServer Directory
             // Service.
-            if (availableServerEndpoints.Count < server_endpoint_minimum_size && steamSession.SteamClient.IsConnected)
+            if (availableServerEndpoints.Count < server_endpoint_minimum_size && ctx.Steam3.SteamClient.IsConnected)
             {
                 var servers = await FetchBootstrapServerListAsync().ConfigureAwait(false);
-                if (servers is null || servers.Count == 0)
+                if (servers is not { Count: > 0 })
                 {
-                    if (ExhaustedToken is not null)
-                    {
-                        await ExhaustedToken.CancelAsync();
-                    }
+                    await ExhaustedToken.CancelNullableAsync();
                     return;
                 }
 
                 ProxyServer = servers.FirstOrDefault(x => x.UseAsProxy);
 
-                var weightedCdnServers = servers
-                                        .Where(
-                                             server =>
-                                             {
-                                                 var isEligibleForApp = server.AllowedAppIds.Length == 0 || server.AllowedAppIds.Contains(appId);
-                                                 return isEligibleForApp && server.Type is "SteamCache" or "CDN";
-                                             }
-                                         )
-                                        .Select(
-                                             server =>
-                                             {
-                                                 if (server.Host is null)
-                                                 {
-                                                     throw new InvalidOperationException("Server host is null");
-                                                 }
+                var weightedCdnServers = servers.Where(
+                    x =>
+                    {
+                        var isEligibleForApp = x.AllowedAppIds.Length == 0 || x.AllowedAppIds.Contains(appId);
+                        return isEligibleForApp && x.Type is "SteamCache" or "CDN";
+                    }
+                ).Select(
+                    x =>
+                    {
+                        if (x.Host is null)
+                        {
+                            throw new InvalidOperationException("Server host is null");
+                        }
 
-                                                 AccountSettingsStore.CONTAINER.Store.ContentServerPenalty.TryGetValue(server.Host, out var penalty);
-                                                 return (server, penalty);
-                                             }
-                                         )
-                                        .OrderBy(pair => pair.penalty).ThenBy(pair => pair.server.WeightedLoad);
+                        ctx.AccountSettingsStore.ContentServerPenalty.TryGetValue(x.Host, out var penalty);
+                        return (server: x, penalty);
+                    }
+                ).OrderBy(x => x.penalty).ThenBy(x => x.server.WeightedLoad);
 
                 foreach (var (server, _) in weightedCdnServers)
                 {
@@ -131,12 +122,9 @@ internal sealed class CdnClientPool
 
                 didPopulate = true;
             }
-            else if (availableServerEndpoints.Count == 0 && !steamSession.SteamClient.IsConnected && didPopulate)
+            else if (availableServerEndpoints.Count == 0 && !ctx.Steam3.SteamClient.IsConnected && didPopulate)
             {
-                if (ExhaustedToken is not null)
-                {
-                    await ExhaustedToken.CancelAsync();
-                }
+                await ExhaustedToken.CancelNullableAsync();
                 return;
             }
         }
@@ -164,12 +152,11 @@ internal sealed class CdnClientPool
 
     public void ReturnConnection(Server server)
     {
-        Debug.Assert(server is not null);
         activeConnectionPool.Push(server);
     }
 
-    public void ReturnBrokenConnection(Server? server)
-    {
-        Debug.Assert(server is not null);
-    }
+#pragma warning disable CA1822
+    // ReSharper disable once MemberCanBeMadeStatic.Global
+    public void ReturnBrokenConnection(Server? server) { }
+#pragma warning restore CA1822
 }

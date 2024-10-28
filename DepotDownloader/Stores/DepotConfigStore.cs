@@ -1,7 +1,6 @@
 ﻿// This file is subject to the terms and conditions defined
 // in file 'LICENSE', which is part of this source code package.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -15,7 +14,7 @@ namespace DepotDownloader.Stores;
 ///     Store for depot configs.
 /// </summary>
 [ProtoContract]
-internal sealed class DepotConfigStore
+public sealed class DepotConfigStore
 {
 #region Proto members
     [ProtoMember(1)]

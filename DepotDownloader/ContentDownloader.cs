@@ -23,7 +23,29 @@ using SteamKit2.CDN;
 
 namespace DepotDownloader;
 
-internal class ContentDownloaderException(string value) : Exception(value);
+internal sealed class ContentDownloaderException(string value) : Exception(value);
+
+internal sealed class DepotDownloadInfo(
+    uint   depotId,
+    uint   appId,
+    ulong  manifestId,
+    string branch,
+    string installDir,
+    byte[] depotKey
+)
+{
+    public uint DepotId { get; } = depotId;
+
+    public uint AppId { get; } = appId;
+
+    public ulong ManifestId { get; } = manifestId;
+
+    public string Branch { get; } = branch;
+
+    public string InstallDir { get; } = installDir;
+
+    public byte[] DepotKey { get; } = depotKey;
+}
 
 internal static class ContentDownloader
 {
@@ -40,28 +62,6 @@ internal static class ContentDownloader
     private const           string default_download_dir = "depots";
     private const           string config_dir           = ".DepotDownloader";
     private static readonly string staging_dir          = Path.Combine(config_dir, "staging");
-
-    private sealed class DepotDownloadInfo(
-        uint   depotId,
-        uint   appId,
-        ulong  manifestId,
-        string branch,
-        string installDir,
-        byte[] depotKey
-    )
-    {
-        public uint DepotId { get; } = depotId;
-
-        public uint AppId { get; } = appId;
-
-        public ulong ManifestId { get; } = manifestId;
-
-        public string Branch { get; } = branch;
-
-        public string InstallDir { get; } = installDir;
-
-        public byte[] DepotKey { get; } = depotKey;
-    }
 
     private static bool CreateDirectories(uint depotId, uint depotVersion, [NotNullWhen(returnValue: true)] out string? installDir)
     {

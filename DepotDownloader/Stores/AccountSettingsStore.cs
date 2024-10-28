@@ -17,7 +17,7 @@ namespace DepotDownloader.Stores;
 ///     Store for account settings.
 /// </summary>
 [ProtoContract]
-internal sealed class AccountSettingsStore
+public sealed class AccountSettingsStore
 {
 #region Proto members
     [ProtoMember(1, IsRequired = false)]

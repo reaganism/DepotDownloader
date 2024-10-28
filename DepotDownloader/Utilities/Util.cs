@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 
 using SteamKit2;
@@ -152,6 +153,14 @@ internal static class Util
             var completedTask = await Task.WhenAny(tasksInFlight).ConfigureAwait(false);
             await completedTask.ConfigureAwait(false);
             tasksInFlight.Remove(completedTask);
+        }
+    }
+
+    public static async Task CancelNullableAsync(this CancellationTokenSource? tokenSource)
+    {
+        if (tokenSource is not null)
+        {
+            await tokenSource.CancelAsync();
         }
     }
 }

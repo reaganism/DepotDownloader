@@ -9,9 +9,8 @@ using System.Threading.Tasks;
 
 namespace DepotDownloader.Net.Http;
 
-// This is based on the dotnet issue #44686 and its workaround at
-// <https://github.com/dotnet/runtime/issues/44686#issuecomment-733797994>.  We
-// don't know if the IPv6 stack is functional.
+// See <https://github.com/dotnet/runtime/issues/44686#issuecomment-733797994>
+// for an explanation.
 internal static class WorkaroundHttpClientFactory
 {
     public static HttpClient CreateHttpClient()
@@ -22,10 +21,6 @@ internal static class WorkaroundHttpClientFactory
                 ConnectCallback = Ipv4ConnectAsync,
             }
         );
-
-        // TODO: Restore User Agent information?
-        // var assemblyVersion = typeof(HttpClientFactory).Assembly.GetName().Version.ToString(fieldCount: 3);
-        // client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DepotDownloader", assemblyVersion));
 
         return client;
     }
